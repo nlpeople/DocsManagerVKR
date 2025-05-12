@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+
+{% block title %}Выбор типа документа{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+      <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Выберите тип документа
+    </h1>
+    <p class="text-gray-600 mb-8">Нажмите на тип документа, чтобы увидеть пример</p>
+
+    <div class="space-y-6">
+      <!-- Акт -->
+      <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <button onclick="togglePreview('act')" class="w-full text-left focus:outline-none">
+          <div class="p-6 flex justify-between items-center hover:bg-gray-50 transition-colors">
+            <div class="flex items-center">
+              <div class="bg-blue-100 p-3 rounded-lg mr-4">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900">Акт</h2>
+                <p class="text-gray-600 text-sm">Акт выполненных работ или оказанных услуг</p>
+              </div>
+            </div>
+            <svg id="actArrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </button>
+
+        <div id="actPreview" class="hidden px-6 pb-6 max-h-96 overflow-y-auto transition-all duration-300">
+          <div class="border border-gray-200 p-6 rounded-lg font-serif bg-gray-50">
+            <div class="text-center mb-6">
+              <h3 class="text-lg font-bold text-gray-900">АКТ № ____</h3>
+            </div>
+            <div class="space-y-4 text-sm text-gray-700">
+              <p class="text-center">г. ______________ "___" ___________ 20___ г.</p>
+              <p class="text-center font-bold mb-6">{{ title|default:"Акт выполненных работ" }}</p>
+              <p>Мы, нижеподписавшиеся:</p>
+              <p>Заказчик: _________________________________________________</p>
+              <p>Исполнитель: _________________________________________________</p>
+              <p class="mt-4">составили настоящий акт о том, что:</p>
+              <p class="font-medium">1. Исполнитель выполнил следующие работы:</p>
+              <p>________________________________________________________________________</p>
+              <p>________________________________________________________________________</p>
+              <p class="font-medium mt-4">2. Результат выполненных работ:</p>
+              <p>________________________________________________________________________</p>
+              <p class="font-medium mt-4">3. Комиссия в составе:</p>
+              <ul class="list-disc pl-5">
+                <li>_________________________________________________</li>
+                <li>_________________________________________________</li>
+              </ul>
+              <p class="mt-4">удостоверяет, что работы выполнены в полном объеме и надлежащего качества.</p>
+              <p class="font-medium mt-6">Подписи сторон:</p>
+              <p>Заказчик: _________________________ / _________________________________ /</p>
+              <p>Исполнитель: _________________________ / _________________________________ /</p>
+              <p class="font-medium mt-4">Члены комиссии:</p>
+              <p>_________________________ / _________________________________ /</p>
+              <p>_________________________ / _________________________________ /</p>
+            </div>
+          </div>
+          <div class="mt-4 text-right">
+            <a href="{% url 'create_templated_document' document_type='act' %}"
+               class="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Создать акт
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Договор -->
+      <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <button onclick="togglePreview('contract')" class="w-full text-left focus:outline-none">
+          <div class="p-6 flex justify-between items-center hover:bg-gray-50 transition-colors">
+            <div class="flex items-center">
+              <div class="bg-green-100 p-3 rounded-lg mr-4">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900">Договор</h2>
+                <p class="text-gray-600 text-sm">Договор оказания услуг или выполнения работ</p>
+              </div>
+            </div>
+            <svg id="contractArrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </button>
+
+        <div id="contractPreview" class="hidden px-6 pb-6 max-h-96 overflow-y-auto transition-all duration-300">
+          <div class="border border-gray-200 p-6 rounded-lg font-serif bg-gray-50">
+            <div class="text-center mb-6">
+              <h3 class="text-lg font-bold text-gray-900">ДОГОВОР № ____</h3>
+            </div>
+            <div class="space-y-4 text-sm text-gray-700">
+              <p class="text-center">г. ______________ "___" ___________ 20___ г.</p>
+              <p>_________________________________________________ (далее - "Исполнитель"), в лице _________________________________________________, действующего на основании Устава, с одной стороны, и</p>
+              <p>_________________________________________________ (далее - "Заказчик"), в лице _________________________________________________, действующего на основании Устава, с другой стороны, заключили настоящий договор о нижеследующем:</p>
+              <p class="font-bold mt-4">1. ПРЕДМЕТ ДОГОВОРА</p>
+              <p>1.1. _________________________________________________</p>
+              <p class="font-bold mt-4">2. СТОИМОСТЬ УСЛУГ И ПОРЯДОК РАСЧЕТОВ</p>
+              <p>2.1. Общая стоимость услуг по настоящему договору составляет: _________________________________________________.</p>
+              <p>2.2. Оплата производится в следующем порядке: _________________________________________________.</p>
+              <p class="font-bold mt-4">3. СРОК ДЕЙСТВИЯ ДОГОВОРА</p>
+              <p>3.1. Настоящий договор вступает в силу с момента подписания и действует до "_________________________________________________".</p>
+              <p class="font-bold mt-4">4. РЕКВИЗИТЫ СТОРОН</p>
+              <p class="font-medium">ИСПОЛНИТЕЛЬ:</p>
+              <p>_________________________________________________</p>
+              <p>_________________________________________________</p>
+              <p class="font-medium mt-4">ЗАКАЗЧИК:</p>
+              <p>_________________________________________________</p>
+              <p>_________________________________________________</p>
+              <p class="font-bold mt-6">Подписи сторон:</p>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <p>Исполнитель:</p>
+                  <p class="mt-4">_________________________ / _________________________________ /</p>
+                </div>
+                <div>
+                  <p>Заказчик:</p>
+                  <p class="mt-4">_________________________ / _________________________________ /</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 text-right">
+            <a href="{% url 'create_templated_document' document_type='contract' %}"
+               class="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              Создать договор
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Приказ -->
+      <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <button onclick="togglePreview('order')" class="w-full text-left focus:outline-none">
+          <div class="p-6 flex justify-between items-center hover:bg-gray-50 transition-colors">
+            <div class="flex items-center">
+              <div class="bg-yellow-100 p-3 rounded-lg mr-4">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900">Приказ</h2>
+                <p class="text-gray-600 text-sm">Приказ по основной деятельности организации</p>
+              </div>
+            </div>
+            <svg id="orderArrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
+        </button>
+
+        <div id="orderPreview" class="hidden px-6 pb-6 max-h-96 overflow-y-auto transition-all duration-300">
+          <div class="border border-gray-200 p-6 rounded-lg font-serif bg-gray-50">
+            <div class="text-center mb-6">
+              <h3 class="text-lg font-bold text-gray-900">ПРИКАЗ № ____</h3>
+            </div>
+            <div class="space-y-4 text-sm text-gray-700">
+              <p class="text-center">г. ______________ "___" ___________ 20___ г.</p>
+              <p class="text-center font-bold mb-4">{{ title|default:"Приказ по организации" }}</p>
+              <p>На основании: _________________________________________________</p>
+              <p class="font-bold mt-4">ПРИКАЗЫВАЮ:</p>
+              <ol class="list-decimal pl-5">
+                <li>_________________________________________________</li>
+                <li>_________________________________________________</li>
+                <li>_________________________________________________</li>
+              </ol>
+              <p class="font-bold mt-4">Ответственный за исполнение: _________________________________________________</p>
+              <div class="text-right mt-8">
+                <p>Директор: _________________________ / _________________________________ /</p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 text-right">
+            <a href="{% url 'create_templated_document' document_type='order' %}"
+               class="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-2 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Создать приказ
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Стили для кастомного скроллбара */
+  .max-h-96::-webkit-scrollbar {
+    width: 8px;
+  }
+  .max-h-96::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+  }
+  .max-h-96::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .max-h-96::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  /* Стили для анимации превью */
+  [id$="Preview"] {
+    transition: all 0.3s ease;
+  }
+
+  /* Стили для шрифта превью */
+  .font-serif {
+    font-family: Georgia, 'Times New Roman', Times, serif;
+  }
+</style>
+
+<script>
+  function togglePreview(type) {
+    const preview = document.getElementById(`${type}Preview`);
+    const arrow = document.getElementById(`${type}Arrow`);
+
+    // Закрываем все открытые превью, кроме текущего
+    ['act', 'contract', 'order'].forEach(t => {
+      if (t !== type) {
+        const otherPreview = document.getElementById(`${t}Preview`);
+        const otherArrow = document.getElementById(`${t}Arrow`);
+        otherPreview.classList.add('hidden');
+        otherArrow.classList.remove('rotate-180');
+      }
+    });
+
+    // Переключаем текущее превью
+    const isHidden = preview.classList.contains('hidden');
+    preview.classList.toggle('hidden');
+    arrow.classList.toggle('rotate-180');
+
+    // Плавное изменение высоты
+    if (!isHidden) {
+      preview.style.height = '0px';
+      preview.style.opacity = '0';
+    } else {
+      preview.style.height = preview.scrollHeight + 'px';
+      preview.style.opacity = '1';
+      setTimeout(() => {
+        preview.style.height = 'auto';
+      }, 300);
+    }
+  }
+</script>
+{% endblock %}

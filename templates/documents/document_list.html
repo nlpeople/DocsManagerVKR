@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% block title %}Все документы{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-6 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+      <div class="px-6 py-5">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center">
+              <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Все документы
+            </h1>
+            <p class="text-sm text-gray-600">Просмотр и управление всеми документами системы</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {% if user.profile.role == 'secretary' %}
+            <a href="{% url 'export_documents_pdf' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 transition-all">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Экспорт в PDF
+            </a>
+            {% endif %}
+            <a href="{% url 'create_document' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all">
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              Создать документ
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+      <div class="px-6 py-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Search -->
+          <div class="md:col-span-2">
+            <label for="document-search" class="block text-sm font-medium text-gray-700 mb-1">Поиск документов</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+              </div>
+              <input type="text" id="document-search" placeholder="Название, описание или автор"
+                    class="pl-10 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+            </div>
+          </div>
+
+          <!-- Clear filters -->
+          <div class="flex items-end">
+            <button id="clear-filters" class="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors h-10">
+              Сбросить
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status tabs -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+      <div class="px-6">
+        <nav class="-mb-px flex space-x-6 overflow-x-auto">
+          <a href="." class="{% if not request.GET.status %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            Все
+          </a>
+          <a href="?status=accept" class="{% if request.GET.status == 'accept' %}border-green-500 text-green-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            Принятые
+          </a>
+          <a href="?status=signed" class="{% if request.GET.status == 'signed' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            Подписанные
+          </a>
+          <a href="?status=pending" class="{% if request.GET.status == 'pending' %}border-yellow-500 text-yellow-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            На подписании
+          </a>
+          <a href="?status=revision" class="{% if request.GET.status == 'revision' %}border-red-500 text-red-600{% else %}border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300{% endif %} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors">
+            На доработке
+          </a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- Documents table -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+      {% if documents %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Документ</th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Подписи</th>
+                {% if user.profile.role == 'admin' %}
+                  <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="documents-table-body">
+              {% for doc in documents %}
+                <tr class="hover:bg-gray-50 transition-colors document-row"
+                    data-status="{{ doc.status }}"
+                    data-title="{{ doc.title|lower }}"
+                    data-description="{{ doc.description|default:''|lower }}"
+                    data-creator="{{ doc.creators.first.get_full_name|default:doc.creators.first.username|default:''|lower }}">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center min-w-[300px]">
+                      <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                      </div>
+                      <div class="ml-4 overflow-hidden">
+                        <div class="text-sm font-medium text-gray-900 truncate">
+                          {% if doc.pk %}
+                            <a href="{% url 'document_detail' doc.pk %}" class="hover:text-blue-600 hover:underline transition-colors" title="{{ doc.title }}">
+                              {{ doc.title }}
+                            </a>
+                          {% else %}
+                            <span title="{{ doc.title }}">{{ doc.title }}</span>
+                          {% endif %}
+                        </div>
+                        <div class="text-sm text-gray-600 truncate">
+                          {{ doc.creators.first.get_full_name|default:doc.creators.first.username|default:"Не указан" }}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    {% if doc.status == 'accept' %}
+                      <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Принят</span>
+                    {% elif doc.status == 'signed' %}
+                      <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Подписан</span>
+                    {% elif doc.status == 'pending' %}
+                      <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">На подписании</span>
+                    {% elif doc.status == 'revision' %}
+                      <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">На доработке</span>
+                    {% endif %}
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {{ doc.created_at|date:"d.m.Y H:i" }}
+                  </td>
+                  <td class="px-4 py-4">
+                    <div class="flex flex-wrap gap-1 max-w-[300px]">
+                      {% for signer in doc.signers.all %}
+                        {% if signer in doc.signed_by.all %}
+                          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 truncate">
+                            {{ signer.get_full_name|default:signer.username }}
+                            <svg class="ml-1 w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                            </svg>
+                          </span>
+                        {% else %}
+                          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 truncate">
+                            {{ signer.get_full_name|default:signer.username }}
+                          </span>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                  </td>
+                  {% if user.profile.role == 'admin' %}
+                    <td class="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                      <form action="{% url 'delete_document' doc.pk %}" method="post" onsubmit="return confirm('Удалить документ?');">
+                        {% csrf_token %}
+                        <button type="submit" class="text-red-600 hover:text-red-800 transition-colors" title="Удалить">
+                          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M9 7v12m6-12v12"/>
+                          </svg>
+                        </button>
+                      </form>
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-t border-gray-200">
+          <div class="flex-1 flex justify-between sm:hidden">
+            {% if documents.has_previous %}
+              <a href="?page={{ documents.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                Назад
+              </a>
+            {% endif %}
+            {% if documents.has_next %}
+              <a href="?page={{ documents.next_page_number }}" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+                Вперед
+              </a>
+            {% endif %}
+          </div>
+          <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm text-gray-600">
+                Показано с <span class="font-medium text-gray-900">{{ documents.start_index }}</span> по <span class="font-medium text-gray-900">{{ documents.end_index }}</span> из <span class="font-medium text-gray-900">{{ documents.paginator.count }}</span>
+              </p>
+            </div>
+            <div>
+              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                {% if documents.has_previous %}
+                  <a href="?page=1" class="relative inline-flex items-center px-2 py-2 rounded-l-lg border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                  </a>
+                  <a href="?page={{ documents.previous_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                    Назад
+                  </a>
+                {% endif %}
+
+                {% for num in documents.paginator.page_range %}
+                  {% if documents.number == num %}
+                    <a href="?page={{ num }}" class="relative inline-flex items-center px-4 py-2 border border-blue-500 bg-blue-50 text-sm font-medium text-blue-600">
+                      {{ num }}
+                    </a>
+                  {% elif num > documents.number|add:'-3' and num < documents.number|add:'3' %}
+                    <a href="?page={{ num }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                      {{ num }}
+                    </a>
+                  {% endif %}
+                {% endfor %}
+
+                {% if documents.has_next %}
+                  <a href="?page={{ documents.next_page_number }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                    Вперед
+                  </a>
+                  <a href="?page={{ documents.paginator.num_pages }}" class="relative inline-flex items-center px-2 py-2 rounded-r-lg border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                  </a>
+                {% endif %}
+              </nav>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="px-6 py-16 text-center">
+          <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5AILABLE
+586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <h3 class="mt-4 text-lg font-medium text-gray-900">Нет документов</h3>
+          <p class="mt-2 text-sm text-gray-600">Попробуйте изменить параметры фильтрации.</p>
+          <div class="mt-6">
+            <a href="{% url 'create_document' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 transition-all">
+              <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+              </svg>
+              Создать документ
+            </a>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+// Фильтрация документов
+document.getElementById('document-search').addEventListener('input', function() {
+  const searchTerm = this.value.toLowerCase();
+  const rows = document.querySelectorAll('.document-row');
+
+  rows.forEach(row => {
+    const title = row.dataset.title;
+    const description = row.dataset.description;
+    const creator = row.dataset.creator;
+
+    const matches = title.includes(searchTerm) ||
+                   description.includes(searchTerm) ||
+                   creator.includes(searchTerm);
+
+    row.style.display = matches ? '' : 'none';
+  });
+});
+
+// Сброс фильтров
+document.getElementById('clear-filters').addEventListener('click', function() {
+  document.getElementById('document-search').value = '';
+
+  document.querySelectorAll('.document-row').forEach(row => {
+    row.style.display = '';
+  });
+});
+</script>
+{% endblock %}

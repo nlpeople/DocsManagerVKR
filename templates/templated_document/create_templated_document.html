@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Создание документа{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h1 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+      <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Заполните данные для создания {{ document_type|capfirst }}
+    </h1>
+
+    <form method="post" class="space-y-6" id="createDocumentForm">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="space-y-2">
+          <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ field.label }}</label>
+          <div class="mt-1">
+            {% if field.name == 'date' %}
+              <input type="text"
+                     id="{{ field.id_for_label }}"
+                     name="{{ field.name }}"
+                     value="{{ field.value|default_if_none:'' }}"
+                     class="flatpickr w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                     placeholder="Выберите дату">
+            {% else %}
+              {{ field }}
+            {% endif %}
+            {% if field.help_text %}
+              <p class="text-xs text-gray-500 mt-1">{{ field.help_text }}</p>
+            {% endif %}
+            {% if field.errors %}
+              <div class="text-red-500 text-sm mt-1">{{ field.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="mt-8">
+        <button type="submit" class="w-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-3 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Создать документ
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Подключение Flatpickr -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+
+<style>
+  /* Стили для полей ввода */
+  input[type="text"],
+  textarea,
+  select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease-in-out;
+  }
+  input[type="text"]:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+  textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  /* Стили для Flatpickr */
+  .flatpickr-calendar {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  .flatpickr-day.selected,
+  .flatpickr-day.startRange,
+  .flatpickr-day.endRange {
+    background: #4f46e5; /* indigo-600 */
+    border-color: #4f46e5;
+    color: #ffffff;
+  }
+  .flatpickr-day.today {
+    border-color: #3b82f6; /* blue-500 */
+  }
+  .flatpickr-day:hover {
+    background: #e0e7ff; /* indigo-100 */
+    border-color: #e0e7ff;
+  }
+  .flatpickr-monthDropdown-months,
+  .flatpickr-year {
+    color: #1f2937; /* gray-900 */
+  }
+  .flatpickr-prev-month,
+  .flatpickr-next-month {
+    color: #4f46e5; /* indigo-600 */
+  }
+  .flatpickr-input {
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="%234b5563"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>') no-repeat right 0.75rem center;
+    background-size: 1.25rem;
+  }
+</style>
+
+<script>
+  // Инициализация Flatpickr
+  document.addEventListener('DOMContentLoaded', function () {
+    flatpickr('.flatpickr', {
+      dateFormat: 'd.m.Y', // Формат даты: 31.12.2023
+      locale: 'ru', // Русская локализация
+      disableMobile: true, // Отключаем нативный DatePicker на мобильных
+      theme: 'light', // Светлая тема
+      minDate: 'today', // Минимальная дата - сегодня
+      allowInput: true, // Разрешить ручной ввод
+      onReady: function (selectedDates, dateStr, instance) {
+        instance.input.classList.add('cursor-pointer');
+      }
+    });
+  });
+
+  // Анимация загрузки для кнопки отправки формы
+  document.getElementById('createDocumentForm').addEventListener('submit', function(e) {
+    const submitButton = this.querySelector('button[type="submit"]');
+    submitButton.innerHTML = `
+      <svg class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Создание...
+    `;
+    submitButton.disabled = true;
+  });
+</script>
+{% endblock %}

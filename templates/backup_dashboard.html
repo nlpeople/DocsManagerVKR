@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block title %}Управление бэкапами{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8">
+    <!-- Заголовок -->
+    <h1 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+      <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+      </svg>
+      Управление бэкапами
+    </h1>
+    <p class="text-gray-600 mb-8">Экспортируйте и импортируйте данные в форматах CSV и SQL</p>
+
+    <!-- Секция экспорта -->
+    <div class="bg-gray-50 rounded-lg p-6 mb-8">
+      <h2 class="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Экспорт бэкапов
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="{% url 'export_csv_backup' %}" class="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Скачать CSV бэкап
+        </a>
+        <a href="{% url 'export_sql_backup' %}" class="flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Скачать SQL бэкап
+        </a>
+      </div>
+    </div>
+
+    <!-- Секция импорта -->
+    <div class="bg-gray-50 rounded-lg p-6">
+      <h2 class="text-2xl font-semibold text-gray-900 mb-4 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Импорт бэкапов
+      </h2>
+      <div class="space-y-8">
+        <!-- Импорт CSV -->
+        <form method="post" enctype="multipart/form-data" action="{% url 'import_csv_backup' %}" class="space-y-4">
+          {% csrf_token %}
+          <div>
+            <label for="csv_zip" class="block text-sm font-medium text-gray-700">Загрузить CSV бэкап (ZIP):</label>
+            <div class="mt-1 relative">
+              <input type="file" name="csv_zip" id="csv_zip" accept=".zip" class="hidden" required>
+              <div class="file-drop-area border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors" data-input-id="csv_zip">
+                <svg class="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">Перетащите ZIP-файл сюда или <span class="text-blue-600 underline">выберите файл</span></p>
+                <p class="file-name mt-2 text-sm text-gray-900 hidden"></p>
+                <p class="error-message mt-2 text-sm text-red-600 hidden"></p>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:from-green-600 hover:to-teal-600 transition-all">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Импортировать CSV
+          </button>
+        </form>
+
+        <!-- Импорт SQL -->
+        <form method="post" enctype="multipart/form-data" action="{% url 'import_sql_backup' %}" class="space-y-4">
+          {% csrf_token %}
+          <div>
+            <label for="sql_file" class="block text-sm font-medium text-gray-700">Загрузить SQL бэкап:</label>
+            <div class="mt-1 relative">
+              <input type="file" name="sql_file" id="sql_file" accept=".sql" class="hidden" required>
+              <div class="file-drop-area border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors" data-input-id="sql_file">
+                <svg class="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <p class="mt-2 text-sm text-gray-600">Перетащите SQL-файл сюда или <span class="text-blue-600 underline">выберите файл</span></p>
+                <p class="file-name mt-2 text-sm text-gray-900 hidden"></p>
+                <p class="error-message mt-2 text-sm text-red-600 hidden"></p>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg hover:from-green-600 hover:to-teal-600 transition-all">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Импортировать SQL
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Стили для кастомного скроллбара */
+  .max-w-6xl::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .max-w-6xl::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+  }
+  .max-w-6xl::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .max-w-6xl::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  /* Стили для полей загрузки */
+  input[type="file"] {
+    cursor: pointer;
+  }
+  input[type="file"]:focus + .file-drop-area {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+</style>
+
+<script>
+  // Обработка кастомного поля загрузки
+  document.querySelectorAll('.file-drop-area').forEach(area => {
+    const input = document.getElementById(area.dataset.inputId);
+    const fileNameDisplay = area.querySelector('.file-name');
+    const errorMessage = area.querySelector('.error-message');
+
+    // Открытие диалога выбора файла при клике
+    area.addEventListener('click', () => input.click());
+
+    // Обработка drag-and-drop
+    area.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      area.classList.add('border-blue-500');
+    });
+
+    area.addEventListener('dragleave', () => {
+      area.classList.remove('border-blue-500');
+    });
+
+    area.addEventListener('drop', (e) => {
+      e.preventDefault();
+      area.classList.remove('border-blue-500');
+      const file = e.dataTransfer.files[0];
+      handleFile(file, input, fileNameDisplay, errorMessage);
+    });
+
+    // Обработка выбора файла
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      handleFile(file, input, fileNameDisplay, errorMessage);
+    });
+
+    function handleFile(file, input, fileNameDisplay, errorMessage) {
+      fileNameDisplay.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+
+      if (!file) return;
+
+      const allowedTypes = input.accept.split(',').map(type => type.trim().toLowerCase());
+      const fileExtension = `.${file.name.split('.').pop().toLowerCase()}`;
+
+      if (allowedTypes.includes(fileExtension)) {
+        fileNameDisplay.textContent = `Выбран файл: ${file.name}`;
+        fileNameDisplay.classList.remove('hidden');
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+      } else {
+        errorMessage.textContent = `Неверный формат файла. Допустимые форматы: ${allowedTypes.join(', ')}`;
+        errorMessage.classList.remove('hidden');
+        input.value = ''; // Сбрасываем выбор файла
+      }
+    }
+  });
+
+  // Анимация загрузки для кнопок импорта
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      const fileInput = this.querySelector('input[type="file"]');
+      if (!fileInput.files.length) {
+        e.preventDefault();
+        const errorMessage = this.querySelector('.error-message');
+        errorMessage.textContent = 'Пожалуйста, выберите файл.';
+        errorMessage.classList.remove('hidden');
+        return;
+      }
+
+      const button = this.querySelector('button[type="submit"]');
+      button.innerHTML = `
+        <svg class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Загрузка...
+      `;
+      button.disabled = true;
+    });
+  });
+</script>
+{% endblock %}

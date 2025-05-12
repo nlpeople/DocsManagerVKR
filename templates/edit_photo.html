@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Изменение фото профиля{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto my-10 px-4">
+  <div class="bg-white rounded-xl shadow-md overflow-hidden p-6">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Изменение фото профиля</h2>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+      {% csrf_token %}
+
+      <!-- Блок с текущим фото/заглушкой -->
+      <div class="flex flex-col items-center">
+        <div class="relative mb-4 group">
+          {% if form.instance.photo %}
+            <img src="{{ form.instance.photo.url }}"
+                 alt="Текущее фото профиля"
+                 class="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg">
+          {% else %}
+            <div class="w-32 h-32 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center shadow-lg">
+              <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Кастомный инпут для загрузки файла -->
+        <label class="cursor-pointer">
+          <span class="sr-only">Выберите фото</span>
+          <input type="file" name="photo" class="hidden" id="id_photo" accept="image/*">
+          <div class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+            Выбрать новое фото
+          </div>
+        </label>
+
+        <!-- Информация о файле -->
+        <p class="text-sm text-gray-500 mt-2" id="file-info">
+          {% if form.instance.photo %}
+            Текущий файл: {{ form.instance.photo.name|slice:"7:" }}
+          {% else %}
+            Фото не загружено
+          {% endif %}
+        </p>
+      </div>
+
+      <!-- Кнопки действия -->
+      <div class="flex flex-col sm:flex-row gap-4 pt-4">
+        <button type="submit"
+                class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          Сохранить изменения
+        </button>
+
+        <a href="{% url 'profile' %}"
+           class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+          Отмена
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Обновление информации о выбранном файле
+  document.getElementById('id_photo').addEventListener('change', function(e) {
+    const fileInfo = document.getElementById('file-info');
+    if (this.files.length > 0) {
+      fileInfo.textContent = 'Выбран файл: ' + this.files[0].name;
+      fileInfo.className = 'text-sm text-green-600 mt-2';
+
+      // Превью выбранного изображения
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const imgPreview = document.querySelector('.group img') ||
+                          document.querySelector('.group svg').parentNode;
+        if (imgPreview) {
+          if (imgPreview.tagName === 'IMG') {
+            imgPreview.src = event.target.result;
+          } else {
+            const newImg = document.createElement('img');
+            newImg.src = event.target.result;
+            newImg.className = 'w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg';
+            imgPreview.parentNode.replaceChild(newImg, imgPreview);
+          }
+        }
+      };
+      reader.readAsDataURL(this.files[0]);
+    } else {
+      fileInfo.textContent = 'Фото не выбрано';
+      fileInfo.className = 'text-sm text-gray-500 mt-2';
+    }
+  });
+</script>
+
+<style>
+  /* Дополнительные стили для плавных переходов */
+  img {
+    transition: transform 0.3s ease;
+  }
+  .group:hover img {
+    transform: scale(1.05);
+  }
+</style>
+{% endblock %}

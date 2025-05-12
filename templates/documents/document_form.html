@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block title %}Создание документа{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h2 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+      <svg class="w-6 h-6 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Создание нового документа
+    </h2>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+      {% csrf_token %}
+
+      <p class="text-sm text-gray-600 font-medium">
+        Вы автоматически добавлены как инициатор и подписант.
+      </p>
+
+      <!-- Основные поля формы -->
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.title.label }}</label>
+          {{ form.title }}
+          {% if form.title.errors %}
+            <div class="text-red-500 text-sm">{{ form.title.errors }}</div>
+          {% endif %}
+        </div>
+
+        <div class="space-y-2">
+          <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.description.label }}</label>
+          {{ form.description }}
+          {% if form.description.errors %}
+            <div class="text-red-500 text-sm">{{ form.description.errors }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Кастомные селекторы для пользователей -->
+      <div class="space-y-6">
+        <div class="space-y-3">
+          <label class="block text-lg font-medium text-gray-700">Инициаторы (кроме вас)</label>
+          <input type="text"
+                 class="user-search w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                 placeholder="Поиск пользователей..."
+                 data-target="creators">
+          <div class="checkbox-container border border-gray-300 rounded-lg p-4 max-h-64 overflow-y-auto bg-gray-50" id="creators-container">
+            {% for user in form.creators.field.queryset %}
+              <label class="checkbox-item flex items-center p-2 hover:bg-blue-50 rounded cursor-pointer transition-colors">
+                <input type="checkbox"
+                       name="{{ form.creators.name }}"
+                       value="{{ user.id }}"
+                       class="hidden peer focus:ring-2 focus:ring-blue-500">
+                <div class="w-5 h-5 border-2 border-gray-300 rounded-md mr-3
+                            peer-checked:bg-blue-600 peer-checked:border-blue-600
+                            transition-colors flex-shrink-0"></div>
+                <span class="text-gray-600">{{ user.get_full_name|default:user.username }} ({{ user.username }})</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block text-lg font-medium text-gray-700">Подписанты (кроме вас)</label>
+          <input type="text"
+                 class="user-search w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                 placeholder="Поиск пользователей..."
+                 data-target="signers">
+          <div class="checkbox-container border border-gray-300 rounded-lg p-4 max-h-64 overflow-y-auto bg-gray-50" id="signers-container">
+            {% for user in form.signers.field.queryset %}
+              <label class="checkbox-item flex items-center p-2 hover:bg-blue-50 rounded cursor-pointer transition-colors">
+                <input type="checkbox"
+                       name="{{ form.signers.name }}"
+                       value="{{ user.id }}"
+                       class="hidden peer focus:ring-2 focus:ring-blue-500">
+                <div class="w-5 h-5 border-2 border-gray-300 rounded-md mr-3
+                            peer-checked:bg-blue-600 peer-checked:border-blue-600
+                            transition-colors flex-shrink-0"></div>
+                <span class="text-gray-600">{{ user.get_full_name|default:user.username }} ({{ user.username }})</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Файлы для добавления -->
+      <div class="space-y-4">
+        <h3 class="font-semibold text-lg text-gray-900 flex items-center">
+          <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 002.828 2.828l6.586-6.586a4 4 0 00-5.656-5.656l-6.586 6.586a6 6 0 008.485 8.485l6.586-6.586"/>
+          </svg>
+          Добавить файлы
+        </h3>
+        <div class="relative">
+          <label for="document_files" class="block text-sm font-medium text-gray-700">Загрузить файлы:</label>
+          <div class="mt-1">
+            <input type="file" name="files" id="document_files" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple class="hidden">
+            <div class="file-drop-area border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors" data-input-id="document_files">
+              <svg class="w-8 h-8 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <p class="mt-2 text-sm text-gray-600">Перетащите файлы сюда или <span class="text-blue-600 underline">выберите файлы</span></p>
+              <p class="file-name mt-2 text-sm text-gray-900 hidden"></p>
+              <p class="error-message mt-2 text-sm text-red-600 hidden"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Кнопка создания документа -->
+      <button type="submit" class="bg-gradient-to-r from-green-500 to-teal-500 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-teal-600 transition-all w-full flex items-center justify-center">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        Создать документ
+      </button>
+    </form>
+  </div>
+</div>
+
+<style>
+  /* Стили для кастомного скроллбара */
+  .checkbox-container::-webkit-scrollbar {
+    width: 8px;
+  }
+  .checkbox-container::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 4px;
+  }
+  .checkbox-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .checkbox-container::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  /* Стили для полей ввода */
+  input[type="text"],
+  textarea {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease-in-out;
+  }
+  input[type="text"]:focus,
+  textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+  textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  /* Стили для поля загрузки */
+  input[type="file"] {
+    cursor: pointer;
+  }
+  input[type="file"]:focus + .file-drop-area {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  }
+</style>
+
+<script>
+  // Поиск пользователей
+  document.querySelectorAll('.user-search').forEach(searchInput => {
+    const target = searchInput.dataset.target;
+    const container = document.getElementById(`${target}-container`);
+
+    searchInput.addEventListener('input', (e) => {
+      const term = e.target.value.toLowerCase();
+      container.querySelectorAll('.checkbox-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(term) ? 'flex' : 'none';
+      });
+    });
+  });
+
+  // Обработка кликов по чекбоксам
+  document.querySelectorAll('.checkbox-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      // Предотвращаем повторные срабатывания при клике на input
+      if (e.target.tagName !== 'INPUT') {
+        const checkbox = item.querySelector('input[type="checkbox"]');
+        checkbox.checked = !checkbox.checked;
+        item.classList.toggle('bg-blue-50', checkbox.checked);
+        // Обеспечиваем отправку формы
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+    // Обработка прямых кликов по чекбоксу для доступности
+    const checkbox = item.querySelector('input[type="checkbox"]');
+    checkbox.addEventListener('change', () => {
+      item.classList.toggle('bg-blue-50', checkbox.checked);
+    });
+  });
+
+  // Обработка кастомного поля загрузки файлов
+  document.querySelectorAll('.file-drop-area').forEach(area => {
+    const input = document.getElementById(area.dataset.inputId);
+    const fileNameDisplay = area.querySelector('.file-name');
+    const errorMessage = area.querySelector('.error-message');
+
+    // Открытие диалога выбора файла при клике
+    area.addEventListener('click', () => input.click());
+
+    // Обработка drag-and-drop
+    area.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      area.classList.add('border-blue-500');
+    });
+
+    area.addEventListener('dragleave', () => {
+      area.classList.remove('border-blue-500');
+    });
+
+    area.addEventListener('drop', (e) => {
+      e.preventDefault();
+      area.classList.remove('border-blue-500');
+      const files = e.dataTransfer.files;
+      handleFiles(files, input, fileNameDisplay, errorMessage);
+    });
+
+    // Обработка выбора файлов
+    input.addEventListener('change', () => {
+      const files = input.files;
+      handleFiles(files, input, fileNameDisplay, errorMessage);
+    });
+
+    function handleFiles(files, input, fileNameDisplay, errorMessage) {
+      fileNameDisplay.classList.add('hidden');
+      errorMessage.classList.add('hidden');
+
+      if (!files.length) return;
+
+      const allowedTypes = input.accept.split(',').map(type => type.trim().toLowerCase());
+      const validFiles = Array.from(files).filter(file => {
+        const fileExtension = `.${file.name.split('.').pop().toLowerCase()}`;
+        return allowedTypes.includes(fileExtension);
+      });
+
+      if (validFiles.length === files.length) {
+        const fileNames = validFiles.map(file => file.name).join(', ');
+        fileNameDisplay.textContent = `Выбраны файлы: ${fileNames}`;
+        fileNameDisplay.classList.remove('hidden');
+        const dataTransfer = new DataTransfer();
+        validFiles.forEach(file => dataTransfer.items.add(file));
+        input.files = dataTransfer.files;
+      } else {
+        errorMessage.textContent = `Неверный формат файла. Допустимые форматы: ${allowedTypes.join(', ')}`;
+        errorMessage.classList.remove('hidden');
+        input.value = ''; // Сбрасываем выбор файлов
+      }
+    }
+  });
+
+  // Анимация загрузки для кнопки отправки формы
+  document.querySelector('form').addEventListener('submit', function(e) {
+    const fileInput = this.querySelector('input[type="file"]');
+    if (fileInput.files.length === 0 && !this.querySelector('input[name="title"]').value && !this.querySelector('textarea[name="description"]').value) {
+      e.preventDefault();
+      const errorMessage = this.querySelector('.error-message');
+      errorMessage.textContent = 'Пожалуйста, заполните хотя бы одно поле или выберите файлы.';
+      errorMessage.classList.remove('hidden');
+      return;
+    }
+
+    const submitButton = this.querySelector('button[type="submit"]');
+    submitButton.innerHTML = `
+      <svg class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Создание...
+    `;
+    submitButton.disabled = true;
+  });
+  document.querySelectorAll('.checkbox-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    console.log('Clicked checkbox-item', e.target);
+    if (e.target.tagName !== 'INPUT') {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      console.log('Checkbox state before:', checkbox.checked);
+      checkbox.checked = !checkbox.checked;
+      console.log('Checkbox state after:', checkbox.checked);
+      item.classList.toggle('bg-blue-50', checkbox.checked);
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+});
+</script>
+{% endblock %}
