@@ -22,6 +22,10 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from .metrics import update_metrics
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.platypus import Paragraph, Spacer
+from reportlab.lib.units import inch
 from django.contrib.auth.decorators import user_passes_test
 from django.http import HttpResponse
 from django.contrib import messages
@@ -548,60 +552,140 @@ def home(request):
 def is_secretary(user):
     return user.profile.role == 'secretary'
 
+
 @login_required
 def export_documents_pdf(request):
     # Проверка роли
     if not is_secretary(request.user):
         return HttpResponse('У вас нет прав для доступа к этому ресурсу.', status=403)
 
-    # Ответ с PDF
+    # Создаем HttpResponse с заголовками PDF
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="documents.pdf"'
+    response['Content-Disposition'] = 'attachment; filename="документы.pdf"'
 
-    # Создаем буфер
-    doc = SimpleDocTemplate(response, pagesize=A4)
+    # Создаем документ PDF с A4 размером
+    doc = SimpleDocTemplate(response, pagesize=A4,
+                            rightMargin=40, leftMargin=40,
+                            topMargin=40, bottomMargin=40)
 
-    # Регистрируем шрифт Times New Roman
-    pdfmetrics.registerFont(TTFont('TimesNewRoman', 'C:/Windows/Fonts/times.ttf'))
+    # Регистрируем русскоязычный шрифт
+    try:
+        # Попробуем зарегистрировать шрифт Times New Roman
+        pdfmetrics.registerFont(TTFont('TimesNewRoman', 'C:/Windows/Fonts/times.ttf'))
+        # Или альтернативный шрифт, поддерживающий кириллицу
+        pdfmetrics.registerFont(TTFont('Arial', 'C:/Windows/Fonts/arial.ttf'))
+        main_font = 'TimesNewRoman'
+    except:
+        # Если шрифты не найдены, используем стандартный
+        main_font = 'Helvetica'
+        logger.warning("Русскоязычные шрифты не найдены, используется Helvetica")
 
-    # Получаем все документы
-    documents = Document.objects.all().order_by('-created_at')
+    # Создаем стили
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='RussianTitle',
+                              fontName=main_font,
+                              fontSize=14,
+                              alignment=TA_CENTER,
+                              spaceAfter=20))
 
-    # Данные для таблицы
-    data = [['ID', 'Название', 'Статус', 'Создан']]
+    styles.add(ParagraphStyle(name='RussianHeader',
+                              fontName=main_font,
+                              fontSize=10,
+                              textColor=colors.white,
+                              alignment=TA_CENTER))
+
+    styles.add(ParagraphStyle(name='RussianCell',
+                              fontName=main_font,
+                              fontSize=10,
+                              alignment=TA_LEFT))
+
+    # Получаем все документы с нужными данными
+    documents = Document.objects.all().order_by('-created_at').values_list(
+        'id', 'title', 'status', 'created_at'
+    )
+
+    # Подготовка данных для таблицы
+    data = []
+
+    # Заголовок документа
+    elements = [
+        Paragraph("Список документов", styles['RussianTitle']),
+        Spacer(1, 12)
+    ]
+
+    # Заголовки таблицы
+    header = [
+        Paragraph("№", styles['RussianHeader']),
+        Paragraph("Название документа", styles['RussianHeader']),
+        Paragraph("Статус", styles['RussianHeader']),
+        Paragraph("Дата создания", styles['RussianHeader'])
+    ]
+    data.append(header)
+
+    # Функция для отображения статуса на русском
+    def get_status_display(status):
+        status_map = {
+            'draft': 'Черновик',
+            'pending': 'На подписании',
+            'signed': 'Подписан',
+            'revision': 'На доработке',
+            'accept': 'Принят',
+            'rejected': 'Отклонен'
+        }
+        return status_map.get(status, status)
 
     # Заполняем таблицу данными
-    for doc_item in documents:
-        data.append([
-            str(doc_item.id),
-            doc_item.title,  # Используем поле title
-            doc_item.status,  # Используем поле status
-            doc_item.created_at.strftime('%d.%m.%Y')
-        ])
-
-    # Стиль для таблицы и текста
-    style = getSampleStyleSheet()
-    style['Normal'].fontName = 'TimesNewRoman'
-    style['Normal'].fontSize = 12
+    for idx, (doc_id, title, status, created_at) in enumerate(documents, 1):
+        row = [
+            Paragraph(str(idx), styles['RussianCell']),
+            Paragraph(title, styles['RussianCell']),
+            Paragraph(get_status_display(status), styles['RussianCell']),
+            Paragraph(created_at.strftime('%d.%m.%Y %H:%M'), styles['RussianCell'])
+        ]
+        data.append(row)
 
     # Создаем таблицу
-    table = Table(data, colWidths=[40, 150, 80, 80])
+    table = Table(data, colWidths=[30, 250, 80, 80], repeatRows=1)
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4472C4')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'TimesNewRoman'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('FONTNAME', (0, 0), (-1, 0), main_font),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
 
-    # Добавляем таблицу в документ
-    elements = [table]
+    elements.append(table)
+
+    # Добавляем подпись внизу
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph(
+        f"Сформировано: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+        ParagraphStyle(name='RussianFooter',
+                       fontName=main_font,
+                       fontSize=8,
+                       alignment=TA_RIGHT)
+    ))
+
+    # Собираем документ
     doc.build(elements)
 
     return response
 
+def get_status_display(self, status):
+    """Возвращает русскоязычное отображение статуса"""
+    status_map = {
+        'draft': 'Черновик',
+        'pending': 'На подписании',
+        'signed': 'Подписан',
+        'revision': 'На доработке',
+        'accept': 'Принят',
+        'rejected': 'Отклонен'
+    }
+    return status_map.get(status, status)
 
 @login_required
 def bind_telegram(request):
@@ -786,48 +870,45 @@ def create_document(request):
 @login_required
 def edit_document(request, pk):
     document = get_object_or_404(Document, pk=pk)
+    logger.info(f"Редактирование документа {pk} пользователем {request.user.username}")
 
     if request.user not in document.creators.all():
         messages.error(request, "Вы не являетесь инициатором этого документа.")
         return redirect('document_detail', pk=pk)
 
-    # Проверка, что документ в статусе "На доработке"
     if document.status != 'revision' and request.method == 'GET':
         messages.error(request, "Документ можно редактировать только в статусе 'На доработке'.")
         return redirect('document_detail', pk=pk)
 
+    files = document.files.filter(status='uploaded')
+    is_creator = request.user in document.creators.all()
+
+    comment_form = DocumentCommentForm()  # ✅ гарантированно определяем
+
     if request.method == 'POST':
         form = DocumentForm(request.POST, instance=document, current_user=request.user)
-        files = request.FILES.getlist('files')
+        files_data = request.FILES.getlist('files')
 
-        # Обработка завершения доработки
         if 'finish_revision' in request.POST:
             document.status = 'pending'
             document.save()
-
-            # Системный комментарий
             DocumentComment.objects.create(
                 document=document,
                 user=request.user,
                 message="Документ завершил доработку и готов к подписанию",
                 is_system=True
             )
-
             messages.success(request, "Документ готов к подписанию.")
             return redirect('document_detail', pk=document.pk)
 
-        # Обработка отправки на доработку
         if 'send_to_revision' in request.POST:
             document.send_to_revision()
-
-            # Системный комментарий
             DocumentComment.objects.create(
                 document=document,
                 user=request.user,
                 message="Документ отправлен на доработку, все подписи сброшены",
                 is_system=True
             )
-
             messages.info(request, "Документ отправлен на доработку, подписи сброшены.")
             return redirect('document_detail', pk=document.pk)
 
@@ -835,7 +916,6 @@ def edit_document(request, pk):
             document = form.save(commit=False)
             document.save()
 
-            # Обновление инициаторов и подписантов
             creators = list(form.cleaned_data['creators'])
             signers = list(form.cleaned_data['signers'])
 
@@ -849,8 +929,7 @@ def edit_document(request, pk):
             document.creators.set(creators)
             document.signers.set(signers)
 
-            # Сохранение новых файлов
-            for file in files:
+            for file in files_data:
                 DocumentFile.objects.create(
                     document=document,
                     file=file,
@@ -860,13 +939,10 @@ def edit_document(request, pk):
             messages.success(request, "Документ успешно обновлён.")
             return redirect('document_detail', pk=document.pk)
         else:
+            logger.error(f"Ошибки в форме: {form.errors}")
             messages.error(request, "Пожалуйста, исправьте ошибки в форме.")
     else:
         form = DocumentForm(instance=document, current_user=request.user)
-        comment_form = DocumentCommentForm()
-
-    files = document.files.filter(status='uploaded')
-    is_creator = request.user in document.creators.all()
 
     return render(request, 'documents/document_edit.html', {
         'form': form,
@@ -996,6 +1072,7 @@ def delete_file(request, file_id):
     return redirect('edit_document', pk=file.document.pk)
 
 
+@login_required
 def document_list(request):
     status_filter = request.GET.get('status', '')
     academic_year_filter = request.GET.get('academic_year', '')

@@ -322,5 +322,18 @@
       submitButton.disabled = true;
     }
   });
+  document.querySelectorAll('.checkbox-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    console.log('Clicked checkbox-item', e.target);
+    if (e.target.tagName !== 'INPUT') {
+      const checkbox = item.querySelector('input[type="checkbox"]');
+      console.log('Checkbox state before:', checkbox.checked);
+      checkbox.checked = !checkbox.checked;
+      console.log('Checkbox state after:', checkbox.checked);
+      item.classList.toggle('bg-blue-50', checkbox.checked);
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+});
 </script>
 {% endblock %}

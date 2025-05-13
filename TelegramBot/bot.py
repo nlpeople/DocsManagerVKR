@@ -7,16 +7,17 @@ from Docs.models import Profile, DocumentFile, DocumentComment, User
 from dotenv import load_dotenv
 import logging
 import asyncio
+import os
 
+load_dotenv()
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = "8021983986:AAEAd83O01vWEGJBVsp0_DA4tNxvpG9Tdp8"
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 application = None
-
 
 # Асинхронные методы для работы с БД
 async def get_profile_by_code(code: str):
@@ -25,17 +26,14 @@ async def get_profile_by_code(code: str):
     except Profile.DoesNotExist:
         return None
 
-
 async def get_profile_by_telegram_id(telegram_id: str):
     try:
         return await Profile.objects.aget(telegram_id=telegram_id)
     except Profile.DoesNotExist:
         return None
 
-
 async def save_profile(profile: Profile):
     await profile.asave()
-
 
 async def get_document_creators(document_id):
     from Docs.models import Document
@@ -45,48 +43,37 @@ async def get_document_creators(document_id):
     except Document.DoesNotExist:
         return []
 
+async def send_telegram_notification(telegram_id: str, message: str):
+    """Отправляет уведомление в Telegram по telegram_id."""
+    try:
+        await application.bot.send_message(chat_id=telegram_id, text=message)
+        logger.info(f"Уведомление отправлено пользователю с telegram_id {telegram_id}: {message}")
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомления пользователю с telegram_id {telegram_id}: {str(e)}")
 
 # Обработчики команд бота
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
     username = update.effective_user.username
-    logger.info(f"Пользователь {telegram_id} (@{username}) использовал /start")
+    args = context.args
+    logger.info(f"Пользователь {telegram_id} (@{username}) использовал /start с аргументами: {args}")
 
-    profile = await get_profile_by_telegram_id(telegram_id)
-
-    if profile:
-        keyboard = [[InlineKeyboardButton("Отвязать Telegram", callback_data='unbind_telegram')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Ваш Telegram аккаунт уже привязан. Вы можете его отвязать.",
-            reply_markup=reply_markup
-        )
+    if args:
+        # Если передан код, обрабатываем как привязку
+        await bind_telegram(update, context)
     else:
-        await update.message.reply_text(
-            "Ваш Telegram аккаунт не привязан.\nПерейдите по ссылке на сайте, чтобы выполнить привязку."
-        )
-
-
-@sync_to_async
-def get_user_by_id(user_id):
-    try:
-        return User.objects.get(pk=user_id)
-    except User.DoesNotExist:
-        return None
-
-
-@sync_to_async
-def get_user_name(user):
-    if not user:
-        return "unknown"
-    return user.get_full_name() or user.username
-
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.error(f"Ошибка в боте: {context.error}", exc_info=True)
-    if update.effective_message:
-        await update.effective_message.reply_text("Произошла ошибка. Пожалуйста, попробуйте позже.")
-
+        profile = await get_profile_by_telegram_id(telegram_id)
+        if profile:
+            keyboard = [[InlineKeyboardButton("Отвязать Telegram", callback_data='unbind_telegram')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "Ваш Telegram аккаунт уже привязан. Вы можете его отвязать.",
+                reply_markup=reply_markup
+            )
+        else:
+            await update.message.reply_text(
+                "Ваш Telegram аккаунт не привязан.\nПерейдите по ссылке на сайте, чтобы выполнить привязку."
+            )
 
 @sync_to_async
 def get_user_username(user_id):
@@ -95,7 +82,6 @@ def get_user_username(user_id):
         return user.username
     except User.DoesNotExist:
         return "unknown"
-
 
 async def bind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
@@ -123,7 +109,6 @@ async def bind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
             profile.telegram_token = None
             await save_profile(profile)
 
-            # Используем асинхронный метод для получения username
             user_username = await get_user_username(profile.user_id)
             logger.info(f"Telegram ID {telegram_id} привязан к пользователю {user_username}")
 
@@ -134,7 +119,6 @@ async def bind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Используйте специальную ссылку с кодом, чтобы привязать аккаунт.")
         logger.info(f"Пользователь {telegram_id} не передал код.")
-
 
 async def unbind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = str(update.effective_user.id)
@@ -151,64 +135,17 @@ async def unbind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer("Telegram не был привязан.")
         logger.warning(f"Попытка отвязки несуществующего Telegram ID: {telegram_id}")
 
-
-# Уведомления
-async def send_telegram_notification(profile, message):
-    try:
-        if profile.telegram_id:
-            await application.bot.send_message(
-                chat_id=profile.telegram_id,
-                text=message
-            )
-    except Exception as e:
-        logger.error(f"Ошибка отправки сообщения для профиля {profile.id}: {e}", exc_info=True)
-
-
-@receiver(post_save, sender=DocumentFile)
-def notify_file_change(sender, instance, created, **kwargs):
-    async def wrapper():
-        try:
-            creators = await sync_to_async(list)(instance.document.creators.all())
-            for creator in creators:
-                profile = await sync_to_async(getattr)(creator, 'profile', None)
-                if profile and profile.telegram_id:
-                    user_name = await get_user_name(creator)
-                    message = f"📄 Файл {'добавлен' if created else 'изменен'} в документе {instance.document.title}\n"
-                    message += f"Файл: {instance.name}"
-                    await send_telegram_notification(profile, message)
-        except Exception as e:
-            logger.error(f"Ошибка в обработчике файлов: {e}", exc_info=True)
-
-    asyncio.run_coroutine_threadsafe(wrapper(), application.job_queue._dispatcher._event_loop)
-
-@receiver(post_save, sender=DocumentComment)
-def notify_new_comment(sender, instance, created, **kwargs):
-    if not created:
-        return
-
-    async def wrapper():
-        creators = await get_document_creators(instance.document_id)
-        for creator in creators:
-            if creator.id != instance.user.id and hasattr(creator, 'profile'):
-                message = f"💬 Новый комментарий в документе {instance.document.title}\n"
-                message += f"От: {instance.user.get_full_name() or instance.user.username}\n"
-                message += f"Текст: {instance.message[:100]}..."
-                await send_telegram_notification(creator.profile, message)
-
-    asyncio.run_coroutine_threadsafe(wrapper(), application.job_queue._dispatcher._event_loop)
-
-
 def start_bot_logic():
     global application
     logger.info("🚀 Telegram-бот запускается...")
     application = Application.builder().token(BOT_TOKEN).build()
 
-    application.add_handler(CommandHandler("start", bind_telegram))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("bind", bind_telegram))
     application.add_handler(CallbackQueryHandler(unbind_telegram, pattern='^unbind_telegram$'))
 
     logger.info("✅ Бот успешно запущен и слушает обновления.")
     application.run_polling()
-
 
 if __name__ == "__main__":
     start_bot_logic()
