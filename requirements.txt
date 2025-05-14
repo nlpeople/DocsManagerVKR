@@ -12,3 +12,13 @@ psycopg2-binary~=2.9.10
 django_extensions~=4.1
 python-docx~=1.1.2
 python-telegram-bot~=22.0
+chromadb
+llama-index
+llama-index-embeddings-huggingface
+llama-index-llms-ollama
+llama-index-vector-stores-chroma
+docx2txt
+torch
+transformers
+python-pptx
+Pillow

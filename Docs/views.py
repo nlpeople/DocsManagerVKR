@@ -1,54 +1,48 @@
-import secrets
-from django.contrib.auth import logout
-from django.db.models import Q
-from django.template.loader import render_to_string
-from django.views import View
-from .forms import *
-from django.shortcuts import get_object_or_404, render, redirect
-from django.contrib.auth.decorators import login_required
-from .forms import DocumentForm
-from docx import Document as DocxDocument
-from django.core.exceptions import ValidationError
-from django.urls import reverse
-from urllib.parse import unquote
-from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-from django.core.paginator import Paginator
-from django.http import JsonResponse
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from .metrics import update_metrics
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.platypus import Paragraph, Spacer
-from reportlab.lib.units import inch
-from django.contrib.auth.decorators import user_passes_test
-from django.http import HttpResponse
-from django.contrib import messages
-from django.conf import settings
-from django.core.files.storage import FileSystemStorage
-from django.contrib.auth.models import User
-from django.contrib.auth.decorators import user_passes_test
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
-from django.contrib import messages
-from django.conf import settings
-import csv
-import os
-import zipfile
-import subprocess
 import io
-from django.core.files.storage import FileSystemStorage
-from .models import Profile, Document, DocumentSignature, DocumentFile, DocumentComment, DocumentTemplate
-from django.contrib.auth.models import User
 import json
 import logging
-from dotenv import load_dotenv
+import os
+import secrets
+import subprocess
+from datetime import datetime
+from urllib.parse import unquote
+import csv
+import zipfile
 
+from dotenv import load_dotenv
+from docx import Document as DocxDocument
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import (Paragraph, SimpleDocTemplate, Spacer, Table,
+                               TableStyle)
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import logout
+from django.contrib.auth.decorators import (login_required,
+                                         user_passes_test)
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+from django.core.files.storage import FileSystemStorage
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import (HttpResponse, JsonResponse)
+from django.shortcuts import (get_object_or_404, redirect, render)
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.views import View
+
+
+from .forms import *
+from .forms import DocumentForm
+from .metrics import update_metrics
+from .models import (Document, DocumentComment, DocumentFile,
+                    DocumentSignature, DocumentTemplate, Profile)
 
 load_dotenv()
 # Настройка логирования
@@ -92,7 +86,7 @@ def export_csv_backup(request):
 
             # Экспорт модели Document
             document_buffer = io.StringIO()
-            document_buffer.write('\ufeff')  # Добавляем BOM
+            document_buffer.write('\ufeff')
             document_writer = csv.writer(document_buffer)
             document_writer.writerow(
                 ['id', 'title', 'description', 'status', 'created_at', 'updated_at', 'creators', 'signers',
@@ -114,7 +108,7 @@ def export_csv_backup(request):
 
             # Экспорт модели DocumentSignature
             signature_buffer = io.StringIO()
-            signature_buffer.write('\ufeff')  # Добавляем BOM
+            signature_buffer.write('\ufeff')
             signature_writer = csv.writer(signature_buffer)
             signature_writer.writerow(['document_id', 'user_id', 'signature', 'signed_at', 'signature_data'])
             for sig in DocumentSignature.objects.all():
@@ -130,7 +124,7 @@ def export_csv_backup(request):
 
             # Экспорт модели DocumentFile
             file_buffer = io.StringIO()
-            file_buffer.write('\ufeff')  # Добавляем BOM
+            file_buffer.write('\ufeff')
             file_writer = csv.writer(file_buffer)
             file_writer.writerow(['document_id', 'file_name', 'name', 'uploaded_at', 'status'])
             for doc_file in DocumentFile.objects.all():
@@ -147,7 +141,7 @@ def export_csv_backup(request):
 
             # Экспорт модели DocumentComment
             comment_buffer = io.StringIO()
-            comment_buffer.write('\ufeff')  # Добавляем BOM
+            comment_buffer.write('\ufeff')
             comment_writer = csv.writer(comment_buffer)
             comment_writer.writerow(['document_id', 'user_id', 'message', 'created_at', 'is_system'])
             for comment in DocumentComment.objects.all():
@@ -163,7 +157,7 @@ def export_csv_backup(request):
 
             # Экспорт модели DocumentTemplate
             template_buffer = io.StringIO()
-            template_buffer.write('\ufeff')  # Добавляем BOM
+            template_buffer.write('\ufeff')
             template_writer = csv.writer(template_buffer)
             template_writer.writerow(
                 ['id', 'name', 'document_type', 'template_file', 'description', 'created_at', 'updated_at',
@@ -202,8 +196,8 @@ def export_sql_backup(request):
     sql_path = os.path.join(settings.MEDIA_ROOT, sql_filename)
 
     db_settings = settings.DATABASES['default']
-    # Указываем полный путь к pg_dump (замените на актуальный путь)
-    pg_dump_path = os.getenv('POSTGRE_DUMP_PATH')  # Настройте путь
+    # Указываем полный путь к pg_dump
+    pg_dump_path = os.getenv('POSTGRE_DUMP_PATH')
     command = [
         pg_dump_path,
         '-h', db_settings['HOST'],
@@ -387,14 +381,6 @@ def import_csv_backup(request):
     return redirect('backup_dashboard')
 
 
-from django.core.files.storage import FileSystemStorage
-from django.shortcuts import redirect
-from django.contrib import messages
-from django.conf import settings
-import subprocess
-import os
-import logging
-
 logger = logging.getLogger(__name__)
 
 @user_passes_test(is_admin)
@@ -568,17 +554,52 @@ def export_documents_pdf(request):
                             rightMargin=40, leftMargin=40,
                             topMargin=40, bottomMargin=40)
 
-    # Регистрируем русскоязычный шрифт
+    # Пути к шрифтам для разных ОС
+    font_paths = {
+        'Windows': {
+            'TimesNewRoman': 'C:/Windows/Fonts/times.ttf',
+            'Arial': 'C:/Windows/Fonts/arial.ttf'
+        },
+        'Linux': {
+            'TimesNewRoman': '/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf',
+            'Arial': '/usr/share/fonts/truetype/msttcorefonts/Arial.ttf',
+            'DejaVuSans': '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+        }
+    }
+
+    # Попробуем найти подходящий шрифт
+    main_font = 'Helvetica'  # шрифт по умолчанию
     try:
-        # Попробуем зарегистрировать шрифт Times New Roman
-        pdfmetrics.registerFont(TTFont('TimesNewRoman', 'C:/Windows/Fonts/times.ttf'))
-        # Или альтернативный шрифт, поддерживающий кириллицу
-        pdfmetrics.registerFont(TTFont('Arial', 'C:/Windows/Fonts/arial.ttf'))
-        main_font = 'TimesNewRoman'
-    except:
-        # Если шрифты не найдены, используем стандартный
-        main_font = 'Helvetica'
-        logger.warning("Русскоязычные шрифты не найдены, используется Helvetica")
+        # Проверяем платформу
+        import platform
+        system = platform.system()
+
+        if system == 'Windows':
+            # Пробуем зарегистрировать шрифты для Windows
+            pdfmetrics.registerFont(TTFont('TimesNewRoman', font_paths['Windows']['TimesNewRoman']))
+            main_font = 'TimesNewRoman'
+        elif system == 'Linux':
+            try:
+                # Сначала пробуем стандартные шрифты для Linux
+                pdfmetrics.registerFont(TTFont('TimesNewRoman', font_paths['Linux']['TimesNewRoman']))
+                main_font = 'TimesNewRoman'
+            except:
+                # Если Times New Roman нет, пробуем Arial
+                try:
+                    pdfmetrics.registerFont(TTFont('Arial', font_paths['Linux']['Arial']))
+                    main_font = 'Arial'
+                except:
+                    # Если и Arial нет, пробуем DejaVu Sans (обычно есть в Linux)
+                    pdfmetrics.registerFont(TTFont('DejaVuSans', font_paths['Linux']['DejaVuSans']))
+                    main_font = 'DejaVuSans'
+    except Exception as e:
+        logger.warning(f"Не удалось загрузить русскоязычные шрифты: {e}")
+        # Если ничего не найдено, попробуем использовать стандартный шрифт с поддержкой кириллицы
+        try:
+            pdfmetrics.registerFont(TTFont('PdfDefault', 'LiberationSerif.ttf'))
+            main_font = 'PdfDefault'
+        except:
+            logger.error("Не найдены даже стандартные шрифты с поддержкой кириллицы")
 
     # Создаем стили
     styles = getSampleStyleSheet()
@@ -1153,7 +1174,7 @@ def profile_edit(request):
         form = ProfilePhotoForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
-            return redirect('profile')  # или куда нужно
+            return redirect('profile')
     else:
         form = ProfilePhotoForm(instance=profile)
 
@@ -1166,7 +1187,7 @@ def unbind_telegram(request):
     profile = request.user.profile
 
     if profile.telegram_id:
-        profile.telegram_id = None  # Убираем Telegram ID
+        profile.telegram_id = None
         profile.save()
         messages.success(request, "Ваш Telegram аккаунт успешно отвязан.")
     else:

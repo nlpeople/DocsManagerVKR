@@ -1,151 +1,223 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from asgiref.sync import sync_to_async
-from Docs.models import Profile, DocumentFile, DocumentComment, User
-from dotenv import load_dotenv
-import logging
-import asyncio
 import os
+import re
+import django
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackContext, MessageHandler, filters
+from asgiref.sync import sync_to_async
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, StorageContext, load_index_from_storage
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.llms.ollama import Ollama
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.core.settings import Settings
+import chromadb
+import requests
+import logging
+from pathlib import Path
+import time
 
-load_dotenv()
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-logger = logging.getLogger(__name__)
+# Настройка Django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "DocsManage.settings")
+django.setup()
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-application = None
+from Docs.models import Profile
 
-# Асинхронные методы для работы с БД
-async def get_profile_by_code(code: str):
-    try:
-        return await Profile.objects.aget(telegram_token=code)
-    except Profile.DoesNotExist:
-        return None
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8021983986:AAEAd83O01vWEGJBVsp0_DA4tNxvpG9Tdp8")
 
-async def get_profile_by_telegram_id(telegram_id: str):
-    try:
-        return await Profile.objects.aget(telegram_id=telegram_id)
-    except Profile.DoesNotExist:
-        return None
+# Класс для индексации и поиска
+class OptimizedIndexer:
+    def __init__(self, ollama_model="qwen2.5:1.5b", docs_path="media/documents", index_path="storage", batch_size=32):
+        self.ollama_model = ollama_model
+        self.docs_path = Path(docs_path)
+        self.index_path = Path(index_path)
+        self.batch_size = batch_size
 
-async def save_profile(profile: Profile):
-    await profile.asave()
+        logging.getLogger("chromadb").setLevel(logging.ERROR)
+        self._check_ollama_availability()
+        self._initialize_models()
+        self._setup_chroma()
 
-async def get_document_creators(document_id):
-    from Docs.models import Document
-    try:
-        document = await Document.objects.aget(pk=document_id)
-        return [creator async for creator in document.creators.all()]
-    except Document.DoesNotExist:
-        return []
+    def _check_ollama_availability(self, max_retries=3):
+        for i in range(max_retries):
+            try:
+                response = requests.get("http://ollama:11434/api/tags", timeout=10)
+                if response.status_code == 200:
+                    try:
+                        response.json()
+                        print("✅ Сервер Ollama доступен")
+                        return
+                    except ValueError:
+                        print("⚠️ Ответ от Ollama не в формате JSON")
+                        return
+            except requests.exceptions.RequestException as e:
+                if i < max_retries - 1:
+                    print(f"⚠️ Попытка {i + 1}/{max_retries}: {e}")
+                    time.sleep(2)
+                    continue
+                raise ConnectionError("❌ Не удалось подключиться к серверу Ollama")
 
-async def send_telegram_notification(telegram_id: str, message: str):
-    """Отправляет уведомление в Telegram по telegram_id."""
-    try:
-        await application.bot.send_message(chat_id=telegram_id, text=message)
-        logger.info(f"Уведомление отправлено пользователю с telegram_id {telegram_id}: {message}")
-    except Exception as e:
-        logger.error(f"Ошибка отправки уведомления пользователю с telegram_id {telegram_id}: {str(e)}")
+    def _initialize_models(self):
+        self.llm = Ollama(
+            model=self.ollama_model,
+            base_url="http://ollama:11434",
+            temperature=0.2,
+            request_timeout=120.0,
+            additional_kwargs={"num_thread": 8, "num_ctx": 4096, "timeout": 120}
+        )
+        self.embed_model = HuggingFaceEmbedding(
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            embed_batch_size=32
+        )
+        Settings.llm = self.llm
+        Settings.embed_model = self.embed_model
 
-# Обработчики команд бота
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    telegram_id = str(update.effective_user.id)
-    username = update.effective_user.username
-    args = context.args
-    logger.info(f"Пользователь {telegram_id} (@{username}) использовал /start с аргументами: {args}")
+    def _setup_chroma(self):
+        self.chroma_client = chromadb.PersistentClient(
+            path=str(self.index_path),
+            settings=chromadb.Settings(anonymized_telemetry=False, allow_reset=True)
+        )
+        self.collection = self.chroma_client.get_or_create_collection("default", metadata={"hnsw:space": "cosine"})
+        self.vector_store = ChromaVectorStore(chroma_collection=self.collection)
 
-    if args:
-        # Если передан код, обрабатываем как привязку
-        await bind_telegram(update, context)
-    else:
-        profile = await get_profile_by_telegram_id(telegram_id)
-        if profile:
-            keyboard = [[InlineKeyboardButton("Отвязать Telegram", callback_data='unbind_telegram')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                "Ваш Telegram аккаунт уже привязан. Вы можете его отвязать.",
-                reply_markup=reply_markup
-            )
-        else:
-            await update.message.reply_text(
-                "Ваш Telegram аккаунт не привязан.\nПерейдите по ссылке на сайте, чтобы выполнить привязку."
-            )
+    def create_or_load_index(self):
+        if self.collection.count() > 0:
+            print("🔄 Загрузка существующего индекса...")
+            storage_context = StorageContext.from_defaults(vector_store=self.vector_store)
+            return load_index_from_storage(storage_context)
+
+        print("📄 Индексация документов...")
+        documents = SimpleDirectoryReader(str(self.docs_path), recursive=True).load_data()
+        index = VectorStoreIndex.from_documents(documents, vector_store=self.vector_store, show_progress=True)
+        index.storage_context.persist(persist_dir=str(self.index_path))
+        return index
+
+    async def query(self, question: str, similarity_top_k: int = 3, max_retries: int = 3):
+        index = self.create_or_load_index()
+        query_engine = index.as_query_engine(similarity_top_k=similarity_top_k)
+        for attempt in range(max_retries):
+            try:
+                return query_engine.query(question)
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"⚠️ Попытка {attempt + 1}/{max_retries} не удалась: {str(e)}")
+                    time.sleep(2)
+                    continue
+                raise
+
+# Инициализация
+indexer = OptimizedIndexer()
+
+# Async-функции для базы данных
+@sync_to_async
+def get_profile_by_token(token):
+    return Profile.objects.filter(telegram_token=token).first()
 
 @sync_to_async
-def get_user_username(user_id):
-    try:
-        user = User.objects.get(pk=user_id)
-        return user.username
-    except User.DoesNotExist:
-        return "unknown"
+def save_profile(profile):
+    profile.save()
 
-async def bind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
+@sync_to_async
+def get_profile_by_telegram_id(telegram_id):
+    return Profile.objects.filter(telegram_id=telegram_id).first()
+
+@sync_to_async
+def get_user_first_last_name(profile):
+    if profile and profile.user:
+        return f"{profile.user.first_name} {profile.user.last_name}"
+    return None
+
+
+# /start
+async def start(update: Update, context: CallbackContext):
     telegram_id = str(update.effective_user.id)
-    username = update.effective_user.username
-    args = context.args
+    profile = await get_profile_by_telegram_id(telegram_id)
 
-    if args:
-        code = args[0]
-        logger.info(f"Пользователь {telegram_id} (@{username}) пытается привязаться с кодом {code}")
-        profile = await get_profile_by_code(code)
-
+    if len(context.args) == 0:
         if profile:
-            if profile.telegram_id:
-                await update.message.reply_text("Этот код уже был использован.")
-                logger.warning(f"Попытка повторной привязки к уже использованному коду: {code}")
-                return
+            username = await get_user_first_last_name(profile)
+            await update.message.reply_text(f"Привет, {username}! Аккаунт уже привязан.")
+        else:
+            await update.message.reply_text("Пожалуйста, перейдите на сайт и выполните привязку.")
+        return
 
-            existing = await get_profile_by_telegram_id(telegram_id)
-            if existing:
-                await update.message.reply_text("Этот Telegram уже привязан к другому аккаунту.")
-                logger.warning(f"Telegram ID {telegram_id} уже привязан к другому профилю.")
-                return
+    token = context.args[0]
+    profile = await get_profile_by_token(token)
 
+    if profile:
+        username = await get_user_first_last_name(profile)
+        if not profile.telegram_id:
             profile.telegram_id = telegram_id
             profile.telegram_token = None
             await save_profile(profile)
-
-            user_username = await get_user_username(profile.user_id)
-            logger.info(f"Telegram ID {telegram_id} привязан к пользователю {user_username}")
-
-            await update.message.reply_text("✅ Привязка выполнена успешно!")
+            await update.message.reply_text(f"Привет, {username}! Telegram успешно привязан.")
         else:
-            await update.message.reply_text("⛔ Неверный код привязки или он уже использован.")
-            logger.warning(f"Неверный код привязки: {code}")
+            await update.message.reply_text(f"Привет, {username}! Telegram уже был привязан.")
     else:
-        await update.message.reply_text("Используйте специальную ссылку с кодом, чтобы привязать аккаунт.")
-        logger.info(f"Пользователь {telegram_id} не передал код.")
+        await update.message.reply_text("Неверный токен. Попробуйте снова.")
 
-async def unbind_telegram(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# /unlink
+async def unlink(update: Update, context: CallbackContext):
     telegram_id = str(update.effective_user.id)
-    username = update.effective_user.username
     profile = await get_profile_by_telegram_id(telegram_id)
 
     if profile:
         profile.telegram_id = None
         await save_profile(profile)
-        await update.callback_query.answer("Telegram отвязан.")
-        await update.callback_query.edit_message_text("Ваш Telegram аккаунт успешно отвязан.")
-        logger.info(f"Пользователь {telegram_id} (@{username}) отвязал Telegram")
+        await update.message.reply_text("Telegram отвязан от аккаунта.")
     else:
-        await update.callback_query.answer("Telegram не был привязан.")
-        logger.warning(f"Попытка отвязки несуществующего Telegram ID: {telegram_id}")
+        await update.message.reply_text("Telegram не привязан к аккаунту.")
 
-def start_bot_logic():
-    global application
-    logger.info("🚀 Telegram-бот запускается...")
-    application = Application.builder().token(BOT_TOKEN).build()
+# Извлечение ключевых слов
+def extract_keywords(text):
+    text = text.lower() if isinstance(text, str) else str(text).lower()
+    words = re.findall(r'\b\w+\b', text)
+    stop_words = set([
+        "и", "в", "на", "с", "по", "за", "для", "от", "до", "или", "но", "о", "об", "из", "при", "как", "что",
+        "это", "то", "же", "бы", "быть", "а", "у", "не", "да", "нет"
+    ])
+    return {word for word in words if word not in stop_words and len(word) > 2}
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("bind", bind_telegram))
-    application.add_handler(CallbackQueryHandler(unbind_telegram, pattern='^unbind_telegram$'))
+# /ask
+async def ask(update: Update, context: CallbackContext):
+    telegram_id = str(update.effective_user.id)
+    profile = await get_profile_by_telegram_id(telegram_id)
 
-    logger.info("✅ Бот успешно запущен и слушает обновления.")
-    application.run_polling()
+    if not profile:
+        await update.message.reply_text("❌ Ваш Telegram не привязан. Перейдите на сайт и выполните привязку.")
+        return
+
+    if len(context.args) == 0:
+        await update.message.reply_text("Используйте команду /ask <ваш вопрос>")
+        return
+
+    question = " ".join(context.args)
+
+    try:
+        waiting = await update.message.reply_text("⌛ Думаю над ответом...")
+        response = await indexer.query(question)
+        response_text = str(response.response)
+
+        if not response_text or len(extract_keywords(response_text)) < 2:
+            await update.message.reply_text("⚠️ Не удалось найти подходящий ответ.")
+        else:
+            await update.message.reply_text(response_text)
+
+        await waiting.delete()
+    except Exception as e:
+        await update.message.reply_text("⚠️ Произошла ошибка при обработке запроса.")
+        print(e)
+
+# Обработка обычных сообщений
+async def handle_message(update: Update, context: CallbackContext):
+    await update.message.reply_text("Я вас не понял. Используйте команду /ask <ваш вопрос>.")
+
+# Главный цикл бота
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("unlink", unlink))
+    app.add_handler(CommandHandler("ask", ask))
+    app.add_handler(MessageHandler(filters.TEXT, handle_message))
+    app.run_polling()
 
 if __name__ == "__main__":
-    start_bot_logic()
+    main()

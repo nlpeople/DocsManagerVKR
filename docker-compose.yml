@@ -30,12 +30,15 @@ services:
       - .:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=http://ollama:11434  # <--- Добавлено для подключения к Ollama
     env_file:
       - .env
     command: python manage.py runbot
     depends_on:
       db:
         condition: service_healthy
+      ollama:
+        condition: service_started
     restart: unless-stopped
 
   db:
@@ -52,6 +55,22 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    entrypoint: >
+      sh -c "ollama serve & 
+             until bash -c 'echo > /dev/tcp/localhost/11434'; do
+               echo 'Waiting for Ollama...';
+               sleep 2;
+             done &&
+             ollama pull qwen2.5:1.5b &&
+             tail -f /dev/null"
 
   prometheus:
     image: prom/prometheus:latest
@@ -76,3 +95,4 @@ services:
 volumes:
   postgres_data:
   grafana-storage:
+  ollama-data:

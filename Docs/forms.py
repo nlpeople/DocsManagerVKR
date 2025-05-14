@@ -127,8 +127,8 @@ class DocumentForm(forms.ModelForm):
     signers = forms.ModelMultipleChoiceField(
         queryset=User.objects.none(),
         widget=forms.CheckboxSelectMultiple,
-        required=True,
-        label='Подписанты'
+        required=False,
+        label='Дополнительные подписанты'
     )
 
     class Meta:

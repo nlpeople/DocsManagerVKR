@@ -1,11 +1,8 @@
-# TelegramBot/management/commands/runbot.py
-
 from django.core.management.base import BaseCommand
-from TelegramBot.bot import start_bot_logic
+import TelegramBot.bot as bot_module  # Импортируем наш bot.py как модуль
 
 class Command(BaseCommand):
-    help = 'Run the Telegram bot'
+    help = "Запускает Telegram-бота"
 
     def handle(self, *args, **options):
-        # Просто вызываем функцию, которая запускает бота
-        start_bot_logic()
+        bot_module.main()  # вызываем main() из bot.py
